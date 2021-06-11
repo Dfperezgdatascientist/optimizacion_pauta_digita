@@ -1,0 +1,238 @@
+---
+title: "Optimización de pauta digital"
+author: "*Daniel Felipe Pérez Grajales* <br/> *Universidad Nacional de Colombia - Sede Medellín* <br/><br/> *Efraín Galvis Amaya* <br/> *Universidad Nacional de Colombia - Sede Medellín* <br/> <br/> **Profesor**: *Juan David Ospina Arango* <br/> *Universidad Nacional de Colombia - Sede Medellín* <br/> *Departamento de Ciencias de la Computación y de la Decisión* <br/> *Decisiones bajo incertidumbre (Optimización para aprendizaje de máquina)*"
+date: "09 de junio de 2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache = TRUE)
+options(warn=-1)###
+options(dplyr.summarise.inform = FALSE)
+options(tidyverse.quiet = TRUE)
+library(readxl)
+library(tidyr)
+library(tidyverse)
+library(DT)
+library(readr)
+library(ggthemes)
+library(plotly)
+
+
+
+
+df <- read_delim("C:/Users/ACER/Desktop/Especializacion_IA/Decisiones bajo incertidumbre/Tareas/Actividad5/datos_horas_conexion.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+
+```
+
+## Optimización de pauta digital
+
+La plataforma digital de servicios QUIX quiere atraer más usuarios. Para ello invertirá en pauta digital. La pauta digital permite configurar las horas en la que las diferentes redes sociales le mostrarán los anuncios de la plataforma a los potenciales usuarios. 
+
+
+Se ha recogido información sobre datos de conexión de usuarios en un periodo de tiempo (ver adjunto). De acuerdo con esta información, ¿cómo debería distribuir su presupuesto de pauta digital la compañía?
+
+### Datos de conexión de usuarios
+
+```{r , echo=FALSE}
+
+datatable(head(df))
+
+```
+
+## Crear variables a partir de la fecha
+
+```{r}
+df$fecha <- as.POSIXct(df$`Fecha Consulta`, format="%d/%m/%Y %H:%M")
+df$hora <- as.numeric(format(df$fecha, "%H"))
+df$Dia <- Hmisc::capitalize(strftime(df$fecha, format = "%A"))
+df$Dia <- factor(df$Dia, levels = c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"))
+df$fecha <-NULL
+df_fech<-df
+```
+
+```{r}
+datatable(head(df_fech))
+```
+
+```{r}
+df1 <- df %>%
+  dplyr::mutate(hora = as.character(hora)) %>%
+  dplyr::group_by(`Estado usuario`, hora) %>%
+  dplyr::summarise(n = dplyr::n())
+
+df$Correo <- tolower(df$Correo)
+df$Correo <- gsub("\\..*", "", df$Correo)
+df$Correo <- gsub("\\d", "", df$Correo)
+df$Correo1 <- NULL
+#table(df$Correo)
+x <- data.frame(table(df$Correo))
+x <- x[order(x$Freq, decreasing = T), ]
+x <- x[1:5,1] %>% unique()
+```
+
+## Hora más frecuente 
+
+```{r}
+library(plotly)
+# dist_tt<-as.data.frame(table(df$hora))
+# dist_tt<-dplyr::arrange(dist_tt, -Freq)
+
+                Cargos<-df%>%  #zipsInBounds()
+                dplyr::mutate(hora=factor(hora, levels = c('0','1','2','3','4','5','6','7',
+                                    '8','9','10','11','12','13','14',
+                                    '15','16','17','18','19','20','21','22','23'))) %>% 
+                dplyr::group_by(hora) %>%
+                dplyr::summarise(frec = dplyr::n()) %>%
+                dplyr::arrange(., desc(frec))
+              
+theme_set(theme_bw())
+
+# Plot
+ggplot(Cargos, aes(x=hora, y=frec, label=frec)) + 
+  geom_point(size=8) + 
+  geom_segment(aes(x=hora, 
+                   xend=hora, 
+                   y=0, 
+                   yend=frec)) + 
+  geom_text(color="white", size=4) +
+  labs(title="Frecuencia por hora de visita", 
+       subtitle="", 
+       caption="") + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+ 
+```
+
+Las horas más frecuentes de conexión a nivel general se dan entre un rango de 7 pm a 10 pm siendo las más frecuente las 9 pm.
+
+## frecuencia de hora de visita por estado de usuario
+
+```{r}
+# descriptivos
+#Numericos
+  df %>%
+  dplyr::select(`Estado usuario`,hora) %>%
+  tidyr::drop_na() %>%
+  gather(x, y, hora) %>%
+  ggplot(aes(x = y, fill = `Estado usuario`, color = `Estado usuario`)) +
+  facet_wrap(~ x, ncol = 3, scales = "free") +
+  geom_density(alpha = 0.5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "top") +
+  scale_color_tableau() +
+  scale_fill_tableau() +
+  theme_minimal()
+
+```
+
+```{r}
+
+  df %>%
+  dplyr::select(hora, `Estado usuario`) %>%
+  tidyr::drop_na() %>%
+  #subset(., Correo %in% x) %>%
+  dplyr::group_by(hora, `Estado usuario`) %>%
+  dplyr::summarise(n = dplyr::n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(`hora`) %>%
+  dplyr::mutate(p = round(n/sum(n)*100, 2)) %>%
+  ggplot(aes(x = factor(hora), y = p, fill = `Estado usuario`, label =(p))) +
+  geom_col(position = 'stack') +
+  geom_text(position = position_dodge(width = 0),    # .9 move to center of bars
+            vjust = -0,    # -0.5 nudge above top of bar
+            size = 3) +
+  #scale_y_continuous(labels = scales::percent)+
+  theme_economist()
+```
+
+Se observa que tanto la función de densidad de los usuarios con estado Activo y Desactivado pueden venir de la misma distribición que genero los datos.Adicionalmente la conexión de usuarios activos se empieza a dar a partir de las 6 am.los usuarios de estado sin validar empiezan a tener conexión significativa en horas de la madrugada 12 am a 5 pm y  8 am a 10 am.  
+
+## Frecuencia por tipo de correo y estado de usuario
+
+```{r}
+# Participacion por correo
+df1 <- df %>%
+  subset(., Correo %in% x) %>%
+  dplyr::group_by(`Estado usuario`, Correo) %>%
+  dplyr::summarise(n = dplyr::n()) %>%
+  dplyr::group_by(`Estado usuario`) %>%
+  dplyr::mutate(p = n/sum(n))
+
+
+  # df1 %>%
+  # plot_ly(x = ~`Estado usuario`, y = ~p,color = ~Correo,
+  #           text = paste(round(df1$p*100,2),"%"), textposition = 'auto')
+
+
+df1 %>%
+  ggplot(aes(x = `Estado usuario`, y = p, fill = Correo, label = scales::percent(p))) +
+  geom_col(position = 'dodge') +
+  geom_text(position = position_dodge(width = .9),    # move to center of bars
+            vjust = -0.5,    # nudge above top of bar
+            size = 3) +
+  scale_y_continuous(labels = scales::percent)+
+  theme_minimal()
+
+```
+
+La identificación de correos de conexión es más frecuente en los diferentes estados el uso de correo Gmail, seguido de correos Hotmail.
+
+```{r}
+  df %>%
+  dplyr::select(hora, Correo) %>%
+  tidyr::drop_na() %>%
+  subset(., Correo %in% x) %>%
+  dplyr::group_by(hora, Correo) %>%
+  dplyr::summarise(n = dplyr::n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(`hora`) %>%
+  mutate(p = round(n/sum(n)*100, 2)) %>%
+  ggplot(aes(x = factor(hora), y = p, fill = Correo, label = (p))) +
+  geom_col(position = 'stack') +
+  geom_text(position = position_dodge(width = 0),    # .9 move to center of bars
+            vjust = -0,    # -0.5 nudge above top of bar
+            size = 3) +
+  theme_minimal()
+  
+  #scale_y_continuous(labels = scales::percent)
+
+```
+
+## Hora más visitada por Día
+
+```{r}
+df3<-df %>% 
+  dplyr::group_by(Dia,hora) %>% 
+  dplyr::summarise(frec=dplyr::n()) 
+
+g <- ggplot(df3, aes(Dia, hora, fill = frec)) +
+    theme_minimal() + 
+    geom_tile(size = 1, color = "white")+
+    scale_fill_gradient(low = "#50BDEB", high = "#001A7B")+#chimba
+    #scale_fill_viridis()  +
+    geom_text(aes(label=frec), color='white') +
+    ggtitle("Dias de visitas por hora") +
+    xlab('Dia') +
+    theme(plot.title = element_text(size = 16), 
+          axis.title = element_text(size = 12, face = "bold"))
+ 
+ 
+ g
+ 
+
+# ggplot(df3, aes(frec, hora, fill = frec)) + 
+#   geom_tile(colour = "white") + 
+#   facet_grid(~Dia) + 
+#   scale_fill_gradient(low="red", high="green") +
+#   labs(x="Week of Month",
+#        y="",
+#        title = "Time-Series Calendar Heatmap", 
+#        subtitle="Yahoo Closing Price", 
+#        fill="Close")
+```
+
+el Gráfico marca en azul las horas más frecuentes del día que se deben distribuir el presupuesto en pauta digital para las horas en la que las diferentes redes sociales le deberá mostrar los anuncios de la plataforma a los potenciales usuarios.como por ejemplo el día lunes pautar a las 12 pm y en un rango de 6 pm a 10 pm.El mejor día de pauta son los jueves de 5 pm a 11 pm. 
+
