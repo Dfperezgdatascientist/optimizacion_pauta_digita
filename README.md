@@ -1,4 +1,4 @@
-# optimizacion_pauta_digita
+# optimización pauta_digita
 Optimizar la distribución de presupuesto de pauta digital
 Decisiones-bajo-incertidumbre Curso Especialización en AI Universidad Nacional de Colombia
 ----
