@@ -20,7 +20,7 @@ Análisis descriptivo.
 Archivo optimizacion_pauta_digital.html
 
 + Bibliografía
-+
+
 [1] http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
 
 [2] https://rpubs.com/atolnay/507909
